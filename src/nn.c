@@ -4,6 +4,16 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <stdint.h>
+typedef int8_t    i8;
+typedef uint8_t   u8;
+typedef int16_t  i16;
+typedef uint16_t u16;
+typedef int32_t  i32;
+typedef uint32_t u32;
+typedef int32_t  i64;
+typedef uint32_t u64;
+
 #define MAX(a, b) \
   ((a > b) ? a : b)
 #define MIN(a, b) \
@@ -13,21 +23,21 @@
 
 
 typedef struct DataHeader {
-  unsigned int width;
-  unsigned int height;
-  unsigned int num_samples;
+  u32 width;
+  u32 height;
+  u32 num_samples;
 } DataHeader;
 
-typedef unsigned char PixelType;
-typedef unsigned char ValueType;
+typedef u8 PixelType;
+typedef u8 ValueType;
 
 DataHeader *readHeader(FILE* fd) {
   DataHeader *header = malloc(sizeof(DataHeader));
 
-  const unsigned int lines_to_skip = 21;
+  const u32 lines_to_skip = 21;
 
-  unsigned int c = 0;
-  unsigned int skipped_lines = 0;
+  u32 c = 0;
+  u32 skipped_lines = 0;
 
   // Skip the 3 first lines where nothing happens
   while (skipped_lines < 3 && (c = fgetc(fd)) != EOF) {
@@ -37,7 +47,7 @@ DataHeader *readHeader(FILE* fd) {
   }
 
   char name[64];
-  unsigned int value;
+  u32 value;
 
   // Read header information about the data set
   // NOTE(anjo): buf can overflow, bigass security vuln.!
@@ -58,8 +68,8 @@ DataHeader *readHeader(FILE* fd) {
 
 void readSample(DataHeader *header, FILE *fd, PixelType *sample,
                 ValueType *correct_value) {
-  unsigned int lines_read = 0;
-  unsigned int c = 0;
+  u32 lines_read = 0;
+  u32 c = 0;
   while (lines_read < header->height && (c = fgetc(fd)) != EOF) {
     if (c == '\n' || c == '\r') {
       lines_read++;
@@ -76,25 +86,23 @@ void readSample(DataHeader *header, FILE *fd, PixelType *sample,
   }
 }
 
-static inline unsigned int sampleOffset(unsigned int width, unsigned int height,
-                                        unsigned int sample_index) {
+static inline u32 sampleOffset(u32 width, u32 height, u32 sample_index) {
   return width*height*sample_index;
 }
 
-static inline unsigned int pixelOffset(unsigned int width, unsigned int height,
-                                       unsigned int x, unsigned int y) {
+static inline u32 pixelOffset(u32 width, u32 height, u32 x, u32 y) {
   return y*width + x;
 }
 
 typedef struct Window {
   const char *title;
-  int x;
-  int y;
-  int corner_x;
-  int corner_y;
-  unsigned int width;
-  unsigned int height;
-  unsigned int border_size;
+  i32 x;
+  i32 y;
+  i32 corner_x;
+  i32 corner_y;
+  u32 width;
+  u32 height;
+  u32 border_size;
   RenderTexture2D render_texture;
 } Window;
 
@@ -107,9 +115,9 @@ void endWindow(Window *window) {
 }
 
 void calculateWindowSize(Window *window,
-                         unsigned int region_width,
-                         unsigned int region_height,
-                         unsigned int border_size) {
+                         u32 region_width,
+                         u32 region_height,
+                         u32 border_size) {
   window->width = region_width + 2*border_size;
   window->height = region_height + 3*border_size;
   window->border_size = border_size;
@@ -121,8 +129,8 @@ void resetWindowDrawPosition(Window *window) {
 }
 
 bool isMouseInWindow(Window *window) {
-  int mouse_x = GetMouseX();
-  int mouse_y = GetMouseY();
+  i32 mouse_x = GetMouseX();
+  i32 mouse_y = GetMouseY();
 
   return (mouse_x >= window->corner_x && mouse_x <= window->corner_x + window->width &&
           mouse_y >= window->corner_y && mouse_y <= window->corner_y + window->height);
@@ -139,10 +147,10 @@ void drawBorder(Window *window, bool should_highlight) {
 }
 
 void drawSample(Window *window, PixelType *sample,
-                unsigned int width, unsigned int height,
-                unsigned int pixel_size) {
-  for (unsigned int y = 0; y < height; ++y) {
-    for (unsigned int x = 0; x < width; ++x) {
+                u32 width, u32 height,
+                u32 pixel_size) {
+  for (u32 y = 0; y < height; ++y) {
+    for (u32 x = 0; x < width; ++x) {
       PixelType pixel = *(sample + pixelOffset(width, height, x, y));
       DrawRectangle(window->x + x * pixel_size,
                     window->y + y * pixel_size,
@@ -152,7 +160,7 @@ void drawSample(Window *window, PixelType *sample,
   }
 }
 
-int main() {
+i32 main() {
   SetTraceLogLevel(LOG_WARNING);
   InitWindow(800, 600, "nn");
   SetTargetFPS(60);
@@ -162,23 +170,23 @@ int main() {
 
   DataHeader *header = readHeader(fd);
 
-  const unsigned int pixel_count = header->width * header->height;
+  const u32 pixel_count = header->width * header->height;
   PixelType *samples = malloc(sizeof(PixelType) * pixel_count * header->num_samples);
   ValueType *correct_values = malloc(sizeof(ValueType) * header->num_samples);
 
-  for (unsigned int i = 0; i < header->num_samples; ++i) {
+  for (u32 i = 0; i < header->num_samples; ++i) {
     PixelType *sample = samples + sampleOffset(header->width, header->height, i);
     readSample(header, fd, sample, &correct_values[i]);
   }
 
   fclose(fd);
 
-  const unsigned int drawing_region_width = 400;
-  const unsigned int drawing_region_height = 400;
+  const u32 drawing_region_width = 400;
+  const u32 drawing_region_height = 400;
   PixelType *drawing_region = malloc(sizeof(PixelType) * drawing_region_width * drawing_region_height);
   memset(drawing_region, 0, sizeof(PixelType) * drawing_region_width * drawing_region_height);
 
-  const unsigned int sample_index = 500;
+  const u32 sample_index = 500;
   Window sample_window = {
     .title = "Sample(s)",
     .corner_x = 10,
@@ -196,25 +204,25 @@ int main() {
   input_window.render_texture = LoadRenderTexture(input_window.width, input_window.height);
 
   bool is_window_being_dragged = false;
-  unsigned int window_drag_dx = 0;
-  unsigned int window_drag_dy = 0;
+  u32 window_drag_dx = 0;
+  u32 window_drag_dy = 0;
 
 #define WINDOW_STACK_SIZE 16
-  unsigned int num_windows = 2;
+  u32 num_windows = 2;
   Window *window_stack[WINDOW_STACK_SIZE] = {
     &sample_window,
     &input_window,
   };
 
   Window *hovered_window = NULL;
-  unsigned int hover_index = 0;
+  u32 hover_index = 0;
 
   while (!WindowShouldClose()) {
     ClearBackground(GRAY);
     BeginDrawing();
 
     if (!hovered_window) {
-      for (unsigned int i = 0; i < num_windows; ++i) {
+      for (u32 i = 0; i < num_windows; ++i) {
         if (isMouseInWindow(window_stack[i])) {
           hover_index = i;
           hovered_window = window_stack[i];
@@ -224,7 +232,7 @@ int main() {
     }
 
     if (hovered_window) {
-      for (unsigned int i = hover_index; i > 0; --i) {
+      for (u32 i = hover_index; i > 0; --i) {
         Window *tmp = window_stack[i];
         window_stack[i] = window_stack[i-1];
         window_stack[i-1] = tmp;
@@ -276,7 +284,7 @@ int main() {
       hovered_window = NULL;
     }
 
-    for (int i = num_windows-1; i >= 0; --i) {
+    for (i32 i = num_windows-1; i >= 0; --i) {
       DrawTextureRec(window_stack[i]->render_texture.texture,
                      (Rectangle){
                      .x = 0,
